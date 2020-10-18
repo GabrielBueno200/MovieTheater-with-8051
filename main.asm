@@ -29,15 +29,15 @@ Main:
 
 ; INTERRUPTION FOR RECEPTIONS
 org 0023H
-	MOV A, SBUF                   ; |  Reads the bytes received
-	CJNE A, #0Dh, storeUserOption ; | Stores the value if diffent from 0D
-	CLR RI                        ; |  Resets RI to receive new bytes
-	RETI
-	storeUserOption:
-		CJNE R7, #1, back 
+	CJNE R7, #1, back 
+		MOV A, SBUF                   ; |  Reads the bytes received
+		CJNE A, #0Dh, storeUserOption ; | Stores the value if diffent from 0D
+		CLR RI                        ; |  Resets RI to receive new bytes
+		RETI
+		storeUserOption:
 			MOV userOption, A  			; |  Writes the value in the userOption var
-			MOV R0, #75h ; initial address
-			MOV R2, #4 ; array size
+			MOV R0, #75h 				; |  Initial array address
+			MOV R2, #4 					; |  Array size
 			ACALL checkOption
 			;CJNE R6, #1, alertInvalidOption
 			CLR RI             			; |  Resets RI to receive new bytes
@@ -82,14 +82,14 @@ showMovies:
 ;subroutine to print movies in the serial port
 writeMovies:
 	MOV DPTR, #moviesList ; |  Stores movies in the DPTR register
-	MOV A, posRead   ; |  like the variable i in a For to print the whole string
-	MOVC A, @A+DPTR  ; |  Reads the current string letter
-	JZ break         ; |  Breaks if the movies are printed
-	MOV SBUF, A      ; |  Transmits the content in A
-	JNB TI, $        ; |  Waits the end of the transmission
-	CLR TI           ; |  Cleans the end of transmission indicator
-	INC posRead      ; |  Increments the string position
-	SJMP writeMovies ; |  Repeats to print next line
+	MOV A, posRead        ; |  like the variable i in a For to print the whole string
+	MOVC A, @A+DPTR       ; |  Reads the current string letter
+	JZ break              ; |  Breaks if the movies are printed
+	MOV SBUF, A           ; |  Transmits the content in A
+	JNB TI, $             ; |  Waits the end of the transmission
+	CLR TI                ; |  Cleans the end of transmission indicator
+	INC posRead           ; |  Increments the string position
+	SJMP writeMovies      ; |  Repeats to print next line
 
 break:
 	MOV areMoviesPrinted, #1
@@ -107,6 +107,7 @@ checkOption:
 
 COMP_SIZE:
 	CJNE R2, #1, ARR_SIZE
+	MOV isOptionValid, #0
 	RET
 
 ARR_SIZE:
