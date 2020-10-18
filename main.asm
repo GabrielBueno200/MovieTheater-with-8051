@@ -1,50 +1,89 @@
-; This program seeks to automate a movie theater using the 8051 microcontroller in the EdSim51 simulator
+;=====================================================
+;                      HEADER;
+;=====================================================
+; This program seeks to automate a 
+; movie theater using the 8051 
+; microcontroller in the EdSim51 
+; simulator
+;=====================================================
+
+
+;=====================================================
+;                  MAIN SECTION
+;=====================================================
 
 ; Jumps for the main function
 org 0000h
 	LJMP Main
+
 
 ; Main function
 org 0080h
 Main:
 	CALL showMovies
 	SJMP $
+;=====================================================
+;              SERIAL CHANNEL SECTION
+;=====================================================
 
-; Function to display the movies available in the serial port
+; INTERRUPTION FOR RECEPTIONS
+org 0023H
+	MOV A, SBUF                   ; |  Reads the bytes received
+	CJNE A, #0Dh, storeUserOption ; | Stores the value if diffent from 0D
+	CLR RI                        ; |  Resets RI to receive new bytes
+	RETI
+	storeUserOption:
+		MOV userOption, A  ; |  Writes the value in the userOption var
+		CLR posRead
+		;ACALL validateOption ; |
+		CLR RI             ; |  Resets RI to receive new bytes
+		RETI
+
+
+
 org 00A0h
-; Variable to store de positions of string
-posRead EQU 70h
+	posRead EQU 70h    ; |  Variable to store the string positions
+	userOption EQU 71h ; |     "      "   "    "  movie chosen by the user   
+
+
+
 ; subroutine to reset variables
 cleanVariables:
 	CLR A
 	MOV posRead, #0h
 	RET
+
+; subroutine to initialize variables
 showMovies:
 	CALL cleanVariables
-	MOV SCON, #40h  ;  |  Serial mode 1
+	MOV SCON, #50h  ;  |  Enable Serial Mode 1 and the port receiver
 	MOV PCON, #80h  ;  |  SMOD bit = 1
 	MOV TMOD, #20h  ;  |  CT1 mode 2
 	MOV TH1, #243   ;  |  Initial value for count
 	MOV TL1, #243   ;  |  Recharge amount
-	SETB TR1        ;  | Turn on Counter
-writeMovies:
-	MOV DPTR, #moviesList ; |  Move the movies to the DPTR
-	MOV A, posRead   ; |  like the variable i in a For to print the hole string
-	MOVC A, @A+DPTR  ; |  Read the first letter
-	JZ finish        ; |  Returns if the movies are printed
-	MOV SBUF, A      ; |  Transmit the content in A
-	JNB TI, $        ; |  Waits the transmition finish
-	CLR TI           ; |  Clean the end of transmition indicator
-	INC posRead      ; |  Incresase to read the next letter
-	SJMP writeMovies ; |  Repeat to print next line
-finish:
-	RET ;  |  Returns if all movies are being shown
+	SETB TR1        ;  |  Turn on the timer
+	MOV IE, #90h    ;  |  Sets the serial interruption
+	
 
-; list of movies and what time do they starts
+;subroutine to print movies in the serial port
+writeMovies:
+	MOV DPTR, #moviesList ; |  Stores movies in the DPTR register
+	MOV A, posRead   ; |  like the variable i in a For to print the whole string
+	MOVC A, @A+DPTR  ; |  Reads the current string letter
+	JZ break         ; |  Breaks if the movies are printed
+	MOV SBUF, A      ; |  Transmits the content in A
+	JNB TI, $        ; |  Waits the end of the transmission
+	CLR TI           ; |  Cleans the end of transmission indicator
+	INC posRead      ; |  Increments the string position
+	SJMP writeMovies ; |  Repeats to print next line
+
+break:
+	RET ;  |  Breaks the loop if all movies have been shown
+
+
+; movies list: names and start times
 moviesList:
 	db "1 » Dune - Starts in 2m" 
 	db '\n'
 	db "2 » 007-Again - Starts in 1m"
-
-
 
