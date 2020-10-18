@@ -68,7 +68,7 @@ writeMovies:
 	MOV DPTR, #moviesList ; |  Stores movies in the DPTR register
 	MOV A, posRead   ; |  like the variable i in a For to print the whole string
 	MOVC A, @A+DPTR  ; |  Reads the current string letter
-	JZ break         ; |  Breaks if the movies are printed
+	JZ break         ; |  Breaks if the movies were printed
 	MOV SBUF, A      ; |  Transmits the content in A
 	JNB TI, $        ; |  Waits the end of the transmission
 	CLR TI           ; |  Cleans the end of transmission indicator
@@ -81,7 +81,7 @@ break:
 
 ; movies list: names and start times
 moviesList:
-	db "1 » Dune - Starts in 2m" 
+	db "1 Â» Dune - Starts in 2m" 
 	db '\n'
-	db "2 » 007-Again - Starts in 1m"
+	db "2 Â» 007-Again - Starts in 1m"
 
