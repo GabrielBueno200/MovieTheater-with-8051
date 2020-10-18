@@ -20,6 +20,7 @@ org 0000h
 ; Main function
 org 0080h
 Main:
+	MOV R1, #0
 	CALL showMovies
 	SJMP $
 ;=====================================================
@@ -33,8 +34,15 @@ org 0023H
 	CLR RI                        ; |  Resets RI to receive new bytes
 	RETI
 	storeUserOption:
-		MOV userOption, A  ; |  Writes the value in the userOption var
-		CLR RI             ; |  Resets RI to receive new bytes
+		CJNE R7, #1, back 
+			MOV userOption, A  			; |  Writes the value in the userOption var
+			MOV R0, #75h ; initial address
+			MOV R2, #4 ; array size
+			ACALL checkOption
+			;CJNE R6, #1, alertInvalidOption
+			CLR RI             			; |  Resets RI to receive new bytes
+			RETI
+	back:
 		RETI
 
 
@@ -42,7 +50,8 @@ org 0023H
 org 00A0h
 	posRead EQU 70h    ; |  Variable to store the string positions
 	userOption EQU 71h ; |     "      "   "    "  movie chosen by the user   
-
+	isOptionValid EQU R6
+	areMoviesPrinted EQU R7
 
 
 ; subroutine to reset variables
@@ -61,6 +70,13 @@ showMovies:
 	MOV TL1, #243   ;  |  Recharge amount
 	SETB TR1        ;  |  Turn on the timer
 	MOV IE, #90h    ;  |  Sets the serial interruption
+
+	MOV 75h, #'A'
+	MOV 76h, #'B'
+	MOV 77h, #'C'
+	MOV 78h, #'E'
+	MOV isOptionValid, #0
+	MOV areMoviesPrinted, #0
 	
 
 ;subroutine to print movies in the serial port
@@ -68,7 +84,7 @@ writeMovies:
 	MOV DPTR, #moviesList ; |  Stores movies in the DPTR register
 	MOV A, posRead   ; |  like the variable i in a For to print the whole string
 	MOVC A, @A+DPTR  ; |  Reads the current string letter
-	JZ break         ; |  Breaks if the movies were printed
+	JZ break         ; |  Breaks if the movies are printed
 	MOV SBUF, A      ; |  Transmits the content in A
 	JNB TI, $        ; |  Waits the end of the transmission
 	CLR TI           ; |  Cleans the end of transmission indicator
@@ -76,12 +92,34 @@ writeMovies:
 	SJMP writeMovies ; |  Repeats to print next line
 
 break:
+	MOV areMoviesPrinted, #1
 	RET ;  |  Breaks the loop if all movies have been shown
 
 
+checkOption:
+	ACALL COMP_SIZE
+	MOV A, @R0
+	INC R0
+	DEC R2
+	CJNE A, userOption, checkOption
+	MOV isOptionValid, #1
+	RET
+
+COMP_SIZE:
+	CJNE R2, #1, ARR_SIZE
+	RET
+
+ARR_SIZE:
+	RET
+
+
+
+InvalidOptionMessage: db "Please, choose an available option!"
+
+	
 ; movies list: names and start times
 moviesList:
-	db "1 Â» Dune - Starts in 2m" 
+	db "1 » Dune - Starts in 2m" 
 	db '\n'
-	db "2 Â» 007-Again - Starts in 1m"
+	db "2 » 007-Again - Starts in 1m"
 
