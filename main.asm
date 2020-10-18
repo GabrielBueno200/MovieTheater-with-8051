@@ -34,8 +34,6 @@ org 0023H
 	RETI
 	storeUserOption:
 		MOV userOption, A  ; |  Writes the value in the userOption var
-		CLR posRead
-		;ACALL validateOption ; |
 		CLR RI             ; |  Resets RI to receive new bytes
 		RETI
 
