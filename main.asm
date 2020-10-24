@@ -136,7 +136,7 @@ org 01A0h
 askForTheMovie:
 	MOV A, #02h ; |  Start position in the first column
 	ACALL posicionaCursor
-	MOV DPTR,#afts1	        ; |  DPTR = begin of the phrase in the first column
+	MOV DPTR,#aftm1	        ; |  DPTR = begin of the phrase in the first column
 	ACALL escreveString
 	MOV A, #45h ; |  Start position in the second column
 	ACALL posicionaCursor
