@@ -366,7 +366,9 @@ alertInvalidOption:
 	InvalidOptionMessage_ROW2: db "an available option!"
 
 
-
+;========================================================
+;               LCD DISPLAY SECTION
+;========================================================
 ORG 0100h
 ; Asks for the seat in the lcd display
 askForTheSeat:
@@ -386,9 +388,7 @@ askForTheSeat:
 		db "poltrona"
 		db 0
 
-;========================================================
-;               LCD DISPLAY SECTION
-;========================================================
+
 ; Ask for the movie in the lcd display
 askForTheMovie:
 	MOV A, #02h 			; |  Start position in the first column
