@@ -237,7 +237,7 @@ org 0000h
 
 
 ; Main function
-org 0060h
+org 0040h
 Main:
 	ACALL showMovies
 	ACALL lcd_init
@@ -269,7 +269,7 @@ org 0023H
 
 
 
-org 0080h
+org 0060h
 	posRead EQU 70h    			; |  Variable to store the string positions
 	userOption EQU 71h 			; |     "      "   "    "  movie chosen by the user   
 	isOptionValid EQU F0		; |     "      " check if the user choice is valid
@@ -318,23 +318,7 @@ break:
 	RET 				        ;  |  Breaks the loop if all movies have been shown
 
 
-; Ask for the movie in the lcd display
-askForTheMovie:
-	MOV A, #02h 			; |  Start position in the first column
-	ACALL positionCursor
-	MOV DPTR,#aftm1	        ; |  DPTR = begin of the phrase in the first column
-	ACALL writeString
-	MOV A, #45h				; |  Start position in the second column
-	ACALL positionCursor
-	MOV DPTR,#aftm2 	    ; |  DPTR = begin of the phrase in the second column
-    ACALL writeString
-	RET
-	aftm1:
-		db "Selecione um"
-		db 0
-	aftm2: 
-		db "filme"
-		db 0
+
 	
 
 checkOption:
@@ -366,6 +350,7 @@ moviesList:
 ; Alerts user if option isn't valid 
 alertInvalidOption:
 	ACALL clearDisplay
+
 	MOV A, #02h 					; |  Start position in the first column
 	ACALL positionCursor
 	MOV DPTR,#InvalidOptionMessage_ROW1	; |  DPTR = begin of the phrase in the first column
@@ -382,7 +367,7 @@ alertInvalidOption:
 
 
 
-ORG 0170h
+ORG 0100h
 ; Asks for the seat in the lcd display
 askForTheSeat:
 	MOV A, #01h 			; |  Start position in the first column
@@ -399,6 +384,24 @@ askForTheSeat:
 		db 0
 	afts2: 
 		db "poltrona"
+		db 0
+
+; Ask for the movie in the lcd display
+askForTheMovie:
+	MOV A, #02h 			; |  Start position in the first column
+	ACALL positionCursor
+	MOV DPTR,#aftm1	        ; |  DPTR = begin of the phrase in the first column
+	ACALL writeString
+	MOV A, #45h				; |  Start position in the second column
+	ACALL positionCursor
+	MOV DPTR,#aftm2 	    ; |  DPTR = begin of the phrase in the second column
+    ACALL writeString
+	RET
+	aftm1:
+		db "Selecione um"
+		db 0
+	aftm2: 
+		db "filme"
 		db 0
 
 ENDP:
