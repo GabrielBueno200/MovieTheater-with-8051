@@ -165,7 +165,7 @@ positionCursor:
 	RET
 
 
-;Retorna o cursor para primeira posiÃ§Ã£o sem limpar o display
+;Retorna o cursor para primeira posição sem limpar o display
 returnCursor:
 	CLR RS	
 	CLR P1.7		; |
@@ -207,25 +207,23 @@ clearDisplay:
 	SETB EN			; |
 	CLR EN			; | negative edge on E
 
-	ACALL delay		; wait for BF to clear
-	ACALL delay		; wait for BF to clear
+	CALL delay		; wait for BF to clear
+	CALL delay		; wait for BF to clear
+	CALL delay
+
 	RET
 
 
 delay:
-	MOV R0, #50
-	DJNZ R0, $
+	MOV R3, #0ffH
+	DJNZ R3, $
 	RET
 
 
-
-
-
-
-
-
-
-
+;################################################################################################################
+;################################################################################################################
+;################################################################################################################
+;################################################################################################################
 
 
 ;========================================================
@@ -242,7 +240,7 @@ org 0040h
 Main:
 	ACALL showMovies
 	ACALL lcd_init
-	ACALL askForTheMovie
+	ACAll askForTheMovie
 	SJMP $
 
 ;=======================================================
@@ -260,7 +258,7 @@ org 0023H
 		storeUserOption:
 			MOV userOption, A  																					; |  Writes the value in the userOption var
 			MOV R0, #75h 																						; |  Initial array address
-			MOV R2, #4 																							; |  Array size
+			MOV R1, #4 																							; |  Array size
 			ACALL checkOption           																		; |  checks if the user's choice is valid
 			CLR RI             																					; |  Resets RI to receive new bytes
 			RETI
@@ -325,26 +323,26 @@ checkOption:
 	ACALL COMP_SIZE
 	MOV A, @R0
 	INC R0
-	DEC R2
+	DEC R1
 	CJNE A, userOption, checkOption
 	SETB isOptionValid
-	LJMP ENDP
+	ACALL showSeatOptions
 	RET
 
 COMP_SIZE:
-	CJNE R2, #0, ARR_SIZE
+	CJNE R1, #0, ARR_SIZE
 	CLR isOptionValid
 	ACALL alertInvalidOption
-	RET
+	SJMP $
 
 ARR_SIZE:
 	RET
 
 ; movies list: names and start times
 moviesList:
-	db "A Â» Dune - Starts in 2m" 
+	db "A » Dune - Starts in 2m" 
 	db '\n'
-	db "B Â» 007-Again - Starts in 1m"
+	db "B » 007-Again - Starts in 1m"
 	db 0
 
 
@@ -352,6 +350,26 @@ moviesList:
 ;               LCD DISPLAY SECTION
 ;========================================================
 ORG 0100h
+
+; Ask for the movie in the lcd display
+askForTheMovie:
+	MOV A, #02h 			; |  Start position in the first column
+	ACALL positionCursor
+	MOV DPTR,#aftm1	        ; |  DPTR = begin of the phrase in the first column
+	ACALL writeString
+	MOV A, #45h				; |  Start position in the second column
+	ACALL positionCursor
+	MOV DPTR,#aftm2 	    ; |  DPTR = begin of the phrase in the second column
+    ACALL writeString
+
+	RET
+	aftm1:
+		db "Selecione um"
+		db 0
+	aftm2: 
+		db "filme"
+		db 0
+
 ; Asks for the seat in the lcd display
 askForTheSeat:
 	ACALL clearDisplay
@@ -372,32 +390,10 @@ askForTheSeat:
 		db "poltrona"
 		db 0
 
-
-; Ask for the movie in the lcd display
-askForTheMovie:
-	MOV A, #02h 			; |  Start position in the first column
-	ACALL positionCursor
-	MOV DPTR,#aftm1	        ; |  DPTR = begin of the phrase in the first column
-	ACALL writeString
-	MOV A, #45h				; |  Start position in the second column
-	ACALL positionCursor
-	MOV DPTR,#aftm2 	    ; |  DPTR = begin of the phrase in the second column
-    ACALL writeString
-	
-	SJMP $
-
-	RET
-	aftm1:
-		db "Selecione um"
-		db 0
-	aftm2: 
-		db "filme"
-		db 0
-
 ; Alerts user if option isn't valid 
 alertInvalidOption:
 	ACALL clearDisplay
-	MOV A, #10h 							; |  Start position in the first column
+	MOV A, #02h 							; |  Start position in the first column
 	ACALL positionCursor
 	MOV DPTR,#InvalidOptionMessage_ROW1	 ; |  DPTR = begin of the phrase in the first column
 	ACALL writeString
@@ -406,17 +402,18 @@ alertInvalidOption:
 	ACALL positionCursor
 	MOV DPTR,#InvalidOptionMessage_ROW2	  ; |  DPTR = begin of the phrase in the first column
 	ACALL writeString	
-	
-	SJMP $
-	
+
 	RET
-	InvalidOptionMessage_ROW1: db "Please, choose"
+	InvalidOptionMessage_ROW1: db "Choose an"
 							   db 0
-	InvalidOptionMessage_ROW2: db "an available option!"
+	InvalidOptionMessage_ROW2: db "available option"
 							   db 0
 ENDP:
 	SJMP $
 
-
-	
-
+;=======================================================
+;              SWITCH/LEDS SECTION
+;=======================================================
+org 029Ah
+showSeatOptions:
+	ACALL askForTheSeat
