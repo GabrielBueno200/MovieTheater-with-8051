@@ -251,7 +251,7 @@ Main:
 ; INTERRUPTION FOR RECEPTIONS
 org 0023H
 	CJNE R7, #1, back 
-		JB isOptionValid, back 
+		JB isOptionValid, back        ; |
 		MOV A, SBUF                   ; |  Reads the bytes received
 		CJNE A, #0Dh, storeUserOption ; |  Stores the value if diffent from 0D
 		CLR RI                        ; |  Resets RI to receive new bytes
@@ -260,7 +260,6 @@ org 0023H
 			MOV userOption, A  																					; |  Writes the value in the userOption var
 			MOV R0, #75h 																						; |  Initial array address
 			MOV R2, #4 																							; |  Array size
-			JB isOptionValid, back      																		; |  checks if user's choice is already stored
 			ACALL checkOption           																		; |  checks if the user's choice is valid
 			CLR RI             																					; |  Resets RI to receive new bytes
 			RETI
@@ -296,7 +295,7 @@ showMovies:
 	MOV 75h, #'A'
 	MOV 76h, #'B'
 	MOV 77h, #'C'
-	MOV 78h, #'E'
+	MOV 78h, #'D'
 	CLR isOptionValid
 	MOV areMoviesPrinted, #0
 	
@@ -332,7 +331,7 @@ checkOption:
 	RET
 
 COMP_SIZE:
-	CJNE R2, #1, ARR_SIZE
+	CJNE R2, #0, ARR_SIZE
 	CLR isOptionValid
 	ACALL alertInvalidOption
 	RET
@@ -346,24 +345,6 @@ moviesList:
 	db '\n'
 	db "B » 007-Again - Starts in 1m"
 	db 0
-
-; Alerts user if option isn't valid 
-alertInvalidOption:
-	ACALL clearDisplay
-
-	MOV A, #02h 					; |  Start position in the first column
-	ACALL positionCursor
-	MOV DPTR,#InvalidOptionMessage_ROW1	; |  DPTR = begin of the phrase in the first column
-	ACALL writeString
-
-	MOV A, #44h 					; |  Start position in the first column
-	ACALL positionCursor
-	MOV DPTR,#InvalidOptionMessage_ROW2	; |  DPTR = begin of the phrase in the first column
-	ACALL writeString	
-
-	RET
-	InvalidOptionMessage_ROW1: db "Please, choose"
-	InvalidOptionMessage_ROW2: db "an available option!"
 
 
 ;========================================================
@@ -407,6 +388,24 @@ askForTheMovie:
 		db "filme"
 		db 0
 
+; Alerts user if option isn't valid 
+alertInvalidOption:
+	ACALL clearDisplay
+	MOV A, #10h 							; |  Start position in the first column
+	ACALL positionCursor
+	MOV DPTR,#InvalidOptionMessage_ROW1	 ; |  DPTR = begin of the phrase in the first column
+	ACALL writeString
+
+	MOV A, #40h 					     	; |  Start position in the first column
+	ACALL positionCursor
+	MOV DPTR,#InvalidOptionMessage_ROW2	  ; |  DPTR = begin of the phrase in the first column
+	ACALL writeString	
+
+	RET
+	InvalidOptionMessage_ROW1: db "Please, choose"
+							   db 0
+	InvalidOptionMessage_ROW2: db "an available option!"
+							   db 0
 ENDP:
 	SJMP $
 
