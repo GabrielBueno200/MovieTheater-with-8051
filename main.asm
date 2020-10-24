@@ -207,7 +207,8 @@ clearDisplay:
 	SETB EN			; |
 	CLR EN			; | negative edge on E
 
-	CALL delay		; wait for BF to clear
+	ACALL delay		; wait for BF to clear
+	ACALL delay		; wait for BF to clear
 	RET
 
 
@@ -353,6 +354,7 @@ moviesList:
 ORG 0100h
 ; Asks for the seat in the lcd display
 askForTheSeat:
+	ACALL clearDisplay
 	MOV A, #01h 			; |  Start position in the first column
 	ACALL positionCursor
 	MOV DPTR,#afts1	        ; |  DPTR = begin of the phrase in the first column
@@ -361,6 +363,7 @@ askForTheSeat:
 	ACALL positionCursor
 	MOV DPTR,#afts2 	    ; |  DPTR = begin of the phrase in the second column
     ACALL writeString
+
 	RET
 	afts1:
 		db "Selecione uma"
@@ -380,6 +383,9 @@ askForTheMovie:
 	ACALL positionCursor
 	MOV DPTR,#aftm2 	    ; |  DPTR = begin of the phrase in the second column
     ACALL writeString
+	
+	SJMP $
+
 	RET
 	aftm1:
 		db "Selecione um"
@@ -400,7 +406,9 @@ alertInvalidOption:
 	ACALL positionCursor
 	MOV DPTR,#InvalidOptionMessage_ROW2	  ; |  DPTR = begin of the phrase in the first column
 	ACALL writeString	
-
+	
+	SJMP $
+	
 	RET
 	InvalidOptionMessage_ROW1: db "Please, choose"
 							   db 0
