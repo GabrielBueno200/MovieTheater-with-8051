@@ -8,7 +8,7 @@
 ;========================================================
 
 ;========================================================
-;                 LCD DISPLAY SECTION
+;                 IMPORTS SECTION
 ;========================================================
 org 01A0h
 
@@ -386,6 +386,9 @@ askForTheSeat:
 		db "poltrona"
 		db 0
 
+;========================================================
+;               LCD DISPLAY SECTION
+;========================================================
 ; Ask for the movie in the lcd display
 askForTheMovie:
 	MOV A, #02h 			; |  Start position in the first column
