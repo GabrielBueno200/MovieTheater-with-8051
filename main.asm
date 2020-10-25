@@ -12,6 +12,9 @@
 ;========================================================
 org 01A0h
 
+;====================================
+;            LCD IMPORTS
+;====================================
 writeString:
 		MOV R2, #0
 rot:
@@ -165,7 +168,7 @@ positionCursor:
 	RET
 
 
-;Retorna o cursor para primeira posição sem limpar o display
+;Returns the cursor to the fisrt position without clear display
 returnCursor:
 	CLR RS	
 	CLR P1.7		; |
@@ -188,7 +191,7 @@ returnCursor:
 	RET
 
 
-;Limpa o display
+;Clears display
 clearDisplay:
 	CLR RS	
 	CLR P1.7		; |
@@ -241,7 +244,9 @@ Main:
 	ACALL showMovies
 	ACALL lcd_init
 	ACAll askForTheMovie
+	;SJMP $
 	SJMP $
+
 
 ;=======================================================
 ;              SERIAL CHANNEL SECTION
@@ -256,11 +261,11 @@ org 0023H
 		CLR RI                        ; |  Resets RI to receive new bytes
 		RETI
 		storeUserOption:
-			MOV userOption, A  																					; |  Writes the value in the userOption var
-			MOV R0, #75h 																						; |  Initial array address
-			MOV R1, #4 																							; |  Array size
-			ACALL checkOption           																		; |  checks if the user's choice is valid
-			CLR RI             																					; |  Resets RI to receive new bytes
+			MOV userOption, A  	; |  Writes the value in the userOption var
+			MOV R0, #75h 		; |  Initial array address
+			MOV R1, #4 			; |  Array size
+			ACALL checkOption   ; |  checks if the user's choice is valid
+			CLR RI              ; |  Resets RI to receive new bytes
 			RETI
 	back:
 		RETI
@@ -290,13 +295,15 @@ showMovies:
 	MOV TL1, #243   ;  |  Recharge amount
 	SETB TR1        ;  |  Turn on the timer
 	MOV IE, #90h    ;  |  Sets the serial interruption
-
+	
+	; | Array of available options for movies (address: 75h - 78h)
 	MOV 75h, #'A'
-	MOV 76h, #'B'
-	MOV 77h, #'C'
-	MOV 78h, #'D'
-	CLR isOptionValid
-	MOV areMoviesPrinted, #0
+	MOV 76h, #'B'	
+	MOV 77h, #'C'	
+	MOV 78h, #'D'	
+
+	CLR isOptionValid			;| initialize the user's movie option
+	MOV areMoviesPrinted, #0	;| initialize the variable to check if the list of movies has been printed
 	
 
 ;subroutine to print movies in the serial port
@@ -312,7 +319,8 @@ writeMovies:
 	SJMP writeMovies      ; |  Repeats to print next line
 
 break:
-	MOV areMoviesPrinted, #1    ;  |  When transmission ends, all the movies where printed
+	CLR A
+	MOV areMoviesPrinted, #1    ;  |  When transmission ends, all the movies were printed
 	RET 				        ;  |  Breaks the loop if all movies have been shown
 
 
@@ -320,19 +328,19 @@ break:
 	
 
 checkOption:
-	ACALL COMP_SIZE
-	MOV A, @R0
-	INC R0
-	DEC R1
-	CJNE A, userOption, checkOption
-	SETB isOptionValid
-	ACALL showSeatOptions
+	ACALL COMP_SIZE						; |  Prevents a possible array overflow
+	MOV A, @R0							; |  Gets the array current element by indirect addressing
+	INC R0								; |  Increments the array position 
+	DEC R1								; |  Checks the number of positions read (until equals zero)
+	CJNE A, userOption, checkOption		; |  If the current element is equals the user's option, validate it
+	SETB isOptionValid					; |  Sets isOptionValid var
+	ACALL showSeatOptions				; |  Shows available seats
 	RET
 
 COMP_SIZE:
-	CJNE R1, #0, ARR_SIZE
-	CLR isOptionValid
-	ACALL alertInvalidOption
+	CJNE R1, #0, ARR_SIZE		; |  If equals 0, the subroutine has read the entire array, then breaks the loop
+	CLR isOptionValid			; |  If the entire array was read by the subroutine, no values match with the user's option
+	CALL alertInvalidOption		
 	SJMP $
 
 ARR_SIZE:
@@ -340,9 +348,9 @@ ARR_SIZE:
 
 ; movies list: names and start times
 moviesList:
-	db "A » Dune - Starts in 2m" 
+	db "A Â» Dune - Starts in 2m" 
 	db '\n'
-	db "B » 007-Again - Starts in 1m"
+	db "B Â» 007-Again - Starts in 1m"
 	db 0
 
 
@@ -351,9 +359,9 @@ moviesList:
 ;========================================================
 ORG 0100h
 
-; Ask for the movie in the lcd display
+; Asks for the movie in the lcd display
 askForTheMovie:
-	MOV A, #02h 			; |  Start position in the first column
+	MOV A, #04h 			; |  Start position in the first column
 	ACALL positionCursor
 	MOV DPTR,#aftm1	        ; |  DPTR = begin of the phrase in the first column
 	ACALL writeString
@@ -364,52 +372,53 @@ askForTheMovie:
 
 	RET
 	aftm1:
-		db "Selecione um"
+		db "Select a"
 		db 0
 	aftm2: 
-		db "filme"
+		db "movie"
 		db 0
 
 ; Asks for the seat in the lcd display
 askForTheSeat:
 	ACALL clearDisplay
-	MOV A, #01h 			; |  Start position in the first column
+	MOV A, #04h 			; |  Start position in the 5th column
 	ACALL positionCursor
-	MOV DPTR,#afts1	        ; |  DPTR = begin of the phrase in the first column
+	MOV DPTR,#afts1	        ; |  DPTR = begin of the phrase in the 5th column
 	ACALL writeString
-	MOV A, #44h  			; |  Start position in the second column
+	MOV A, #46h  			; |  Start position in the second column
 	ACALL positionCursor
 	MOV DPTR,#afts2 	    ; |  DPTR = begin of the phrase in the second column
     ACALL writeString
-
+	
+	SJMP $
 	RET
 	afts1:
-		db "Selecione uma"
+		db "Select a"
 		db 0
 	afts2: 
-		db "poltrona"
+		db "seat"
 		db 0
 
 ; Alerts user if option isn't valid 
 alertInvalidOption:
 	ACALL clearDisplay
-	MOV A, #02h 							; |  Start position in the first column
+	MOV A, #03h										; |  Start position in the 3rd column at 1st row
 	ACALL positionCursor
-	MOV DPTR,#InvalidOptionMessage_ROW1	 ; |  DPTR = begin of the phrase in the first column
+	MOV DPTR,#InvalidOptionMessage_ROW1				; |  DPTR = begin of the phrase in the 3rd column
 	ACALL writeString
 
-	MOV A, #40h 					     	; |  Start position in the first column
+	MOV A, #40h											; |  Start position in the 1st column at 2nd row
 	ACALL positionCursor
-	MOV DPTR,#InvalidOptionMessage_ROW2	  ; |  DPTR = begin of the phrase in the first column
-	ACALL writeString	
+	MOV DPTR,#InvalidOptionMessage_ROW2    ; |  DPTR = begin of the phrase in the 1st column
+    ACALL writeString
+	
+
 
 	RET
 	InvalidOptionMessage_ROW1: db "Choose an"
 							   db 0
 	InvalidOptionMessage_ROW2: db "available option"
 							   db 0
-ENDP:
-	SJMP $
 
 ;=======================================================
 ;              SWITCH/LEDS SECTION
