@@ -10,7 +10,7 @@
 ;========================================================
 ;                 IMPORTS SECTION
 ;========================================================
-org 01A0h
+org 02A0h
 
 ;====================================
 ;            LCD IMPORTS
@@ -276,6 +276,7 @@ org 0023H
 org 0060h
 	posRead EQU 70h    			; |  Variable to store the string positions
 	userOption EQU 71h 			; |     "      "   "    "  movie chosen by the user   
+	keyAscii EQU 72h            ; |  Variable to make userOption-keyAscii and return a index in the aray that represents the movie selected
 	isOptionValid EQU F0		; |     "      " check if the user choice is valid
 	areMoviesPrinted EQU R7		; |     "      "   "    "  "  movies were printed   
 
@@ -409,18 +410,71 @@ alertInvalidOption:
 	MOV DPTR,#InvalidOptionMessage_ROW2    ; |  DPTR = begin of the phrase in the 1st column
     ACALL writeString
 	
-
-
 	RET
 	InvalidOptionMessage_ROW1: db "Choose an"
 							   db 0
 	InvalidOptionMessage_ROW2: db "available option"
 							   db 0
 
+chronometer:
+	ACALL clearDisplay
+	MOV A, #02h										; |  Start position in the 3rd column at 1st row
+	ACALL positionCursor
+	MOV DPTR,#countTime_ROW1		      ; |  DPTR = begin of the phrase in the 3rd column
+	ACALL writeString
+	
+	MOV A, userOption                    ; | Move to A the selected movie
+	MOV keyAscii, #40h                    ; | Default value to make the default operation
+	SUBB A, keyAscii                      ; | Put in A the index(+1) of the selected movie
+ 	DEC A
+	MOV DPTR, #moviesTime
+	MOVC A, @A+DPTR
+
+	MOV keyAscii, A
+	
+	COUNT:
+		MOV A, #46h										; |  Start position in the 1st column at 2nd row
+		ACALL positionCursor
+		MOV A, keyAscii
+		ADD A, #30h
+    	ACALL sendCharacter
+		ACALL waitCount
+		ACALL waitCount
+		ACALL waitCount
+		ACALL waitCount
+	DJNZ keyAscii, COUNT
+		MOV A, #46h										; |  Start position in the 1st column at 2nd row
+		ACALL positionCursor
+		MOV A, keyAscii
+		ADD A, #30h
+    	ACALL sendCharacter
+		ACALL waitCount
+		ACALL waitCount
+		ACALL waitCount
+		ACALL waitCount
+	RET
+	waitCount:
+		MOV R3, #0FFh
+		DJNZ R3, $
+		MOV R3, #0FFh
+		DJNZ R3, $
+		RET
+	moviesTime: ; |  Time until the movies starts
+		db 8h, 9h, 5h, 7h
+	countTime_ROW1: 
+		db "Starts in"
+		db 0
+
+
 ;=======================================================
 ;              SWITCH/LEDS SECTION
 ;=======================================================
 org 029Ah
 showSeatOptions:
-	ACALL askForTheSeat
+	;ACALL askForTheSeat
+	ACALL chronometer
 	SJMP $
+
+org 049Ah
+timer:
+	
