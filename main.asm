@@ -254,6 +254,7 @@ Main:
 
 ; INTERRUPTION FOR RECEPTIONS
 org 0023H
+	CALL delay
 	CJNE R7, #1, back 
 		JB isOptionValid, back        ; |
 		MOV A, SBUF                   ; |  Reads the bytes received
@@ -328,29 +329,25 @@ break:
 	
 
 checkOption:
-	ACALL COMP_SIZE						; |  Prevents a possible array overflow
-	MOV A, @R0							; |  Gets the array current element by indirect addressing
-	INC R0								; |  Increments the array position 
-	DEC R1								; |  Checks the number of positions read (until equals zero)
-	CJNE A, userOption, checkOption		; |  If the current element is equals the user's option, validate it
-	SETB isOptionValid					; |  Sets isOptionValid var
-	ACALL showSeatOptions				; |  Shows available seats
-	RET
-
-COMP_SIZE:
-	CJNE R1, #0, ARR_SIZE		; |  If equals 0, the subroutine has read the entire array, then breaks the loop
-	CLR isOptionValid			; |  If the entire array was read by the subroutine, no values match with the user's option
-	CALL alertInvalidOption		
-	SJMP $
-
-ARR_SIZE:
-	RET
+	; |  Prevents a possible array overflow
+	CJNE R1, #0, CONTINUE		; |  If equals 0, the subroutine has read the entire array, then breaks the loop
+		CLR isOptionValid			; |  If the entire array was read by the subroutine, no values match with the user's option
+		ACALL alertInvalidOption		
+		RET		
+	CONTINUE:		
+		MOV A, @R0							; |  Gets the array current element by indirect addressing
+		INC R0								; |  Increments the array position 
+		DEC R1								; |  Checks the number of positions read (until equals zero)
+		CJNE A, userOption, checkOption		; |  If the current element is equals the user's option, validate it
+		SETB isOptionValid					; |  Sets isOptionValid var
+		ACALL showSeatOptions				; |  Shows available seats
+		RET
 
 ; movies list: names and start times
 moviesList:
-	db "A Â» Dune - Starts in 2m" 
+	db "A » Dune - Starts in 2m" 
 	db '\n'
-	db "B Â» 007-Again - Starts in 1m"
+	db "B » 007-Again - Starts in 1m"
 	db 0
 
 
@@ -426,3 +423,4 @@ alertInvalidOption:
 org 029Ah
 showSeatOptions:
 	ACALL askForTheSeat
+	SJMP $
