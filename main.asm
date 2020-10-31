@@ -426,34 +426,35 @@ chronometer:
 	MOV A, userOption                    ; | Move to A the selected movie
 	MOV keyAscii, #40h                    ; | Default value to make the default operation
 	SUBB A, keyAscii                      ; | Put in A the index(+1) of the selected movie
- 	DEC A
-	MOV DPTR, #moviesTime
-	MOVC A, @A+DPTR
+ 	DEC A                                 ; |  Take off this +1
+	MOV DPTR, #moviesTime                 ; | Move to DPTR the time that the movies should start
+	MOVC A, @A+DPTR                       ; | Mov to A the time of the selected movie, for exemple: Film B = index 1
 
-	MOV keyAscii, A
+	MOV keyAscii, A                       ; | Store in keyAscii the time to the movie starts
 	
 	COUNT:
 		MOV A, #46h										; |  Start position in the 1st column at 2nd row
-		ACALL positionCursor
-		MOV A, keyAscii
-		ADD A, #30h
+		ACALL positionCursor  
+		MOV A, keyAscii                    ; | Move the initial value for the count (e.g. 9)
+		ADD A, #30h                        ; | Sum 30h to print the number in the ASCII 
     	ACALL sendCharacter
-		ACALL waitCount
-		ACALL waitCount
-		ACALL waitCount
-		ACALL waitCount
+		ACALL waitCount                     ; |  
+		ACALL waitCount                     ; |   
+		ACALL waitCount                     ; |  
+		ACALL waitCount                     ; |  Wait until the next number
 	DJNZ keyAscii, COUNT
-		MOV A, #46h										; |  Start position in the 1st column at 2nd row
+		; All of this just to print the 0
+		MOV A, #46h										 ; |  Start position in the 1st column at 2nd row
 		ACALL positionCursor
-		MOV A, keyAscii
-		ADD A, #30h
+		MOV A, keyAscii									 ; | Move the initial value for the count (e.g. 9)
+		ADD A, #30h                         ; | Sum 30h to print the number in the ASCII 
     	ACALL sendCharacter
-		ACALL waitCount
-		ACALL waitCount
-		ACALL waitCount
-		ACALL waitCount
+		ACALL waitCount                     ; |  
+		ACALL waitCount                     ; |  
+		ACALL waitCount                     ; |  
+		ACALL waitCount                     ; |  Wait until the next number
 	RET
-	waitCount:
+	waitCount:  ; Delay to wait for a looong time until the next number
 		MOV R3, #0FFh
 		DJNZ R3, $
 		MOV R3, #0FFh
