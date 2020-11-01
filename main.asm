@@ -223,6 +223,54 @@ delay:
 	RET
 
 
+;====================================
+;            KEYPAD IMPORTS
+;====================================
+
+readKeypad:
+	MOV R0, #0			; clear R0 - the first key is key0
+
+	; scan row0
+	MOV P0, #0FFh	
+	CLR P0.0			; clear row0
+	CALL colScan		; call column-scan subroutine
+	JB F0, finish		; | if F0 is set, jump to end of program 
+						; | (because the pressed key was found and its number is in  R0)
+	; scan row1
+	SETB P0.0			; set row0
+	CLR P0.1			; clear row1
+	CALL colScan		; call column-scan subroutine
+	JB F0, finish		; | if F0 is set, jump to end of program 
+						; | (because the pressed key was found and its number is in  R0)
+	; scan row2
+	SETB P0.1			; set row1
+	CLR P0.2			; clear row2
+	CALL colScan		; call column-scan subroutine
+	JB F0, finish		; | if F0 is set, jump to end of program 
+						; | (because the pressed key was found and its number is in  R0)
+	; scan row3
+	SETB P0.2			; set row2
+	CLR P0.3			; clear row3
+	CALL colScan		; call column-scan subroutine
+	JB F0, finish		; | if F0 is set, jump to end of program 
+						; | (because the pressed key was found and its number is in  R0)
+finish:
+	RET
+
+; column-scan subroutine
+colScan:
+	JNB P0.4, gotKey	; if col0 is cleared - key found
+	INC R0				; otherwise move to next key
+	JNB P0.5, gotKey	; if col1 is cleared - key found
+	INC R0				; otherwise move to next key
+	JNB P0.6, gotKey	; if col2 is cleared - key found
+	INC R0				; otherwise move to next key
+	RET					; return from subroutine - key not found
+gotKey:
+	SETB F0				; key found - set F0
+	RET					; and return from subroutine
+
+
 ;################################################################################################################
 ;################################################################################################################
 ;################################################################################################################
@@ -265,7 +313,7 @@ org 0023H
 			MOV userOption, A  	; |  Writes the value in the userOption var
 			MOV R0, #75h 		; |  Initial array address
 			MOV R1, #4 			; |  Array size
-			ACALL checkOption   ; |  checks if the user's choice is valid
+			ACALL checkMovieOption   ; |  checks if the user's choice is valid
 			CLR RI              ; |  Resets RI to receive new bytes
 			RETI
 	back:
@@ -278,7 +326,9 @@ org 0060h
 	userOption EQU 71h 			; |     "      "   "    "  movie chosen by the user   
 	keyAscii EQU 72h            ; |  Variable to make userOption-keyAscii and return a index in the aray that represents the movie selected
 	isOptionValid EQU F0		; |     "      " check if the user choice is valid
-	areMoviesPrinted EQU R7		; |     "      "   "    "  "  movies were printed   
+	areMoviesPrinted EQU R7		; |     "      "   "    "  "  movies were printed 
+	firstTimeChoosingSeat EQU R5  
+	
 
 
 ; subroutine to reset variables
@@ -302,10 +352,34 @@ showMovies:
 	MOV 75h, #'A'
 	MOV 76h, #'B'	
 	MOV 77h, #'C'	
-	MOV 78h, #'D'	
+	MOV 78h, #'D'
 
-	CLR isOptionValid			;| initialize the user's movie option
-	MOV areMoviesPrinted, #0	;| initialize the variable to check if the list of movies has been printed
+	; | Array of available keypad buttons (address: 44h - 4Bh)
+	MOV 44H, #'7'
+	MOV 45H, #'6'
+	MOV 46H, #'5'
+	MOV 47H, #'4'
+	MOV 48H, #'3'
+	MOV 49H, #'2'
+	MOV 4AH, #'1'
+	MOV 4BH, #'0'		
+
+	; | Array of available seat options (address: 30h - 37h)
+	MOV 30h, #'0'
+	MOV 31h, #'1'	
+	MOV 32h, #'2'
+	MOV 33h, #'3'
+	MOV 34h, #'4'
+	MOV 35h, #'5'
+	MOV 36h, #'6'
+	MOV 37h, #'7'
+				
+	
+	MOV firstTimeChoosingSeat, #0	;| initializes the variable responsible for
+ 									;| checking if the user is choosing a movie for the first time
+
+	CLR isOptionValid				;| initializes the user's movie option
+	MOV areMoviesPrinted, #0		;| initializes the variable to check if the list of movies has been printed
 	
 
 ;subroutine to print movies in the serial port
@@ -327,35 +401,61 @@ break:
 
 
 
-	
+;=======================================================
+;                    ARRAYS SECTION
+;=======================================================	
 
-checkOption:
-	; |  Prevents a possible array overflow
-	CJNE R1, #0, CONTINUE		; |  If equals 0, the subroutine has read the entire array, then breaks the loop
-		CLR isOptionValid			; |  If the entire array was read by the subroutine, no values match with the user's option
+checkMovieOption: 
+	CJNE R1, #0, CONTINUE			; |  Prevents a possible array overflow: If equals 0, the subroutine 
+									;    has read the entire array, then breaks the loop
+		CLR isOptionValid			; |  If the entire array was read by the subroutine, 
+									;    no values match with the user's option
 		ACALL alertInvalidOption		
 		RET		
 	CONTINUE:		
-		MOV A, @R0							; |  Gets the array current element by indirect addressing
-		INC R0								; |  Increments the array position 
-		DEC R1								; |  Checks the number of positions read (until equals zero)
-		CJNE A, userOption, checkOption		; |  If the current element is equals the user's option, validate it
-		SETB isOptionValid					; |  Sets isOptionValid var
-		ACALL showSeatOptions				; |  Shows available seats
+		MOV A, @R0																		; |  Gets the array current element by indirect addressing
+		INC R0																			; |  Increments the array position 
+		DEC R1																			; |  Checks the number of positions read (until equals zero)
+		CJNE A, userOption, checkMovieOption						; |  If the current element is equals the user's option, validate it
+			SETB isOptionValid																; |  Sets isOptionValid var
+			ACALL showSeatOptions															; |  Shows available seats
+			RET
+
+checkSeatOption:
+	CJNE R2, #0, CONT																		; |  Prevents a possible array overflow: If equals 0, the subroutine 
+																							;    has read the entire array, then breaks the loop
+		CJNE firstTimeChoosingSeat, #1, leave   ; |  If the user isn't choosing the seat for the first time ;
+																						 ;    and has selected an unavailable option, alerts
+		INC firstTimeChoosingSeat															; |  else if user has selected an unavailable for the first time, increments  
+		RET		
+	CONT:		
+		MOV A, @R1 						; |  Gets the array current element by indirect addressing
+		INC R1							; |  Increments the array position 
+		DEC R2							; |  Checks the number of positions read (until equals zero)
+		CJNE A, 38h, checkSeatOption		; |  If the current element is equals the user's seat option, validate it
+			DEC R1							; | 
+			MOV @R1, #'-'					; | Put the character '-' in array to inform that the seat was selected 
+			LJMP chronometer				; | Calls the movie's chronometer
+
+		RET
+	leave:
+		ACALL alertInvalidOption
+		MOV R1, #30h
+		ACALL turnOnLeds
 		RET
 
 ; movies list: names and start times
 moviesList:
-	db "A » Dune - Starts in 2m" 
+	db "A Â» Dune - Starts in 2m" 
 	db '\n'
-	db "B » 007-Again - Starts in 1m"
+	db "B Â» 007-Again - Starts in 1m"
 	db 0
 
 
 ;========================================================
 ;               LCD DISPLAY SECTION
 ;========================================================
-ORG 0100h
+ORG 0150h
 
 ; Asks for the movie in the lcd display
 askForTheMovie:
@@ -388,7 +488,28 @@ askForTheSeat:
 	MOV DPTR,#afts2 	    ; |  DPTR = begin of the phrase in the second column
     ACALL writeString
 	
+	INC firstTimeChoosingSeat
+	MOV P1, #255
+
+	waitUserChoice:
+		MOV R1, #30h
+		ACALL turnOnLeds
+		ACALL readKeypad
+		JNB F0, waitUserChoice   ;if F0 is clear, jump to waitUserChoice
+		MOV A, #40h
+		ADD A, R0
+		MOV R0, A
+		MOV A, @R0
+		MOV 38h, A 
+		MOV R1, #30H
+		MOV R2, #8H       
+		ACALL checkSeatOption
+		CLR F0
+		JMP waitUserChoice
+			
+
 	SJMP $
+	
 	RET
 	afts1:
 		db "Select a"
@@ -396,6 +517,7 @@ askForTheSeat:
 	afts2: 
 		db "seat"
 		db 0
+
 
 ; Alerts user if option isn't valid 
 alertInvalidOption:
@@ -426,35 +548,34 @@ chronometer:
 	MOV A, userOption                    ; | Move to A the selected movie
 	MOV keyAscii, #40h                    ; | Default value to make the default operation
 	SUBB A, keyAscii                      ; | Put in A the index(+1) of the selected movie
- 	DEC A                                 ; |  Take off this +1
-	MOV DPTR, #moviesTime                 ; | Move to DPTR the time that the movies should start
-	MOVC A, @A+DPTR                       ; | Mov to A the time of the selected movie, for exemple: Film B = index 1
+ 	DEC A
+	MOV DPTR, #moviesTime
+	MOVC A, @A+DPTR
 
-	MOV keyAscii, A                       ; | Store in keyAscii the time to the movie starts
+	MOV keyAscii, A
 	
 	COUNT:
 		MOV A, #46h										; |  Start position in the 1st column at 2nd row
-		ACALL positionCursor  
-		MOV A, keyAscii                    ; | Move the initial value for the count (e.g. 9)
-		ADD A, #30h                        ; | Sum 30h to print the number in the ASCII 
-    	ACALL sendCharacter
-		ACALL waitCount                     ; |  
-		ACALL waitCount                     ; |   
-		ACALL waitCount                     ; |  
-		ACALL waitCount                     ; |  Wait until the next number
-	DJNZ keyAscii, COUNT
-		; All of this just to print the 0
-		MOV A, #46h										 ; |  Start position in the 1st column at 2nd row
 		ACALL positionCursor
-		MOV A, keyAscii									 ; | Move the initial value for the count (e.g. 9)
-		ADD A, #30h                         ; | Sum 30h to print the number in the ASCII 
+		MOV A, keyAscii
+		ADD A, #30h
     	ACALL sendCharacter
-		ACALL waitCount                     ; |  
-		ACALL waitCount                     ; |  
-		ACALL waitCount                     ; |  
-		ACALL waitCount                     ; |  Wait until the next number
+		ACALL waitCount
+		ACALL waitCount
+		ACALL waitCount
+		ACALL waitCount
+	DJNZ keyAscii, COUNT
+		MOV A, #46h										; |  Start position in the 1st column at 2nd row
+		ACALL positionCursor
+		MOV A, keyAscii
+		ADD A, #30h
+    	ACALL sendCharacter
+		ACALL waitCount
+		ACALL waitCount
+		ACALL waitCount
+		ACALL waitCount
 	RET
-	waitCount:  ; Delay to wait for a looong time until the next number
+	waitCount:
 		MOV R3, #0FFh
 		DJNZ R3, $
 		MOV R3, #0FFh
@@ -470,12 +591,78 @@ chronometer:
 ;=======================================================
 ;              SWITCH/LEDS SECTION
 ;=======================================================
-org 029Ah
+org 041Ah
 showSeatOptions:
-	;ACALL askForTheSeat
+	ACALL askForTheSeat
 	ACALL chronometer
 	SJMP $
 
+turnOnLeds:
+	led0: 
+		CJNE @R1, #'0', valid0
+			SETB P1.0
+			INC R1
+	led1: 
+		CJNE @R1, #'1', valid1
+			SETB P1.1
+			INC R1
+	led2: 
+		CJNE @R1, #'2', valid2
+			SETB P1.2
+			INC R1
+	led3: 
+		CJNE @R1, #'3', valid3
+			SETB P1.3
+			INC R1
+	led4: 
+		CJNE @R1, #'4', valid4
+			SETB P1.4
+			INC R1
+	led5: 
+		CJNE @R1, #'5', valid5
+			SETB P1.5
+			INC R1
+	led6: 
+		CJNE @R1, #'6', valid6
+			SETB P1.6
+			INC R1
+	led7: 
+		CJNE @R1, #'7', valid7
+			SETB P1.7
+			RET
+
+	validateLed:
+		valid0: 
+			CLR P1.0 
+			INC R1
+			AJMP led1
+		valid1:
+			CLR P1.1
+			INC R1 
+			AJMP led2
+		valid2:
+			CLR P1.2 
+			INC R1 
+			AJMP led3
+		valid3:
+			CLR P1.3
+			INC R1
+			AJMP led4
+		valid4: 
+			CLR P1.4 
+			INC R1 
+			AJMP led5
+		valid5: 
+			CLR P1.5 
+			INC R1 
+			AJMP led6
+		valid6: 
+			CLR P1.6 
+			INC R1
+			AJMP led7
+		valid7: 
+			CLR P1.7 
+			RET
+
 org 049Ah
 timer:
-	
