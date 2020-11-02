@@ -435,7 +435,10 @@ checkSeatOption:
 		CJNE A, 38h, checkSeatOption		; |  If the current element is equals the user's seat option, validate it
 			DEC R1							; | 
 			MOV @R1, #'-'					; | Put the character '-' in array to inform that the seat was selected 
-			LJMP chronometer				; | Calls the movie's chronometer
+			;LJMP chronometer				; | Calls the movie's chronometer
+			MOV R1, #30H
+			ACALL turnOnLeds
+			SETB B.0
 
 		RET
 	leave:
@@ -446,9 +449,9 @@ checkSeatOption:
 
 ; movies list: names and start times
 moviesList:
-	db "A Â» Dune - Starts in 2m" 
+	db "A » Dune - Starts in 2m" 
 	db '\n'
-	db "B Â» 007-Again - Starts in 1m"
+	db "B » 007-Again - Starts in 1m"
 	db 0
 
 
@@ -489,9 +492,10 @@ askForTheSeat:
     ACALL writeString
 	
 	INC firstTimeChoosingSeat
-	MOV P1, #255
-
+	MOV P2, #255
+	
 	waitUserChoice:
+		CLR B.0
 		MOV R1, #30h
 		ACALL turnOnLeds
 		ACALL readKeypad
@@ -504,6 +508,7 @@ askForTheSeat:
 		MOV R1, #30H
 		MOV R2, #8H       
 		ACALL checkSeatOption
+		JB B.0, chronometer
 		CLR F0
 		JMP waitUserChoice
 			
@@ -518,6 +523,23 @@ askForTheSeat:
 		db "seat"
 		db 0
 
+movieSarted:
+	ACALL clearDisplay
+	MOV A, #03h										; |  Start position in the 3rd column at 1st row
+	ACALL positionCursor
+	MOV DPTR,#MovieStarted_ROW1				; |  DPTR = begin of the phrase in the 3rd column
+	ACALL writeString
+
+	MOV A, #44h											; |  Start position in the 1st column at 2nd row
+	ACALL positionCursor
+	MOV DPTR,#MovieStarted_ROW2    ; |  DPTR = begin of the phrase in the 1st column
+    ACALL writeString
+	
+	RET
+	MovieStarted_ROW1: db "The movie"
+							   db 0
+	MovieStarted_ROW2: db "started"
+							   db 0
 
 ; Alerts user if option isn't valid 
 alertInvalidOption:
@@ -560,26 +582,24 @@ chronometer:
 		MOV A, keyAscii
 		ADD A, #30h
     	ACALL sendCharacter
+
 		ACALL waitCount
-		ACALL waitCount
-		ACALL waitCount
-		ACALL waitCount
+
 	DJNZ keyAscii, COUNT
 		MOV A, #46h										; |  Start position in the 1st column at 2nd row
 		ACALL positionCursor
 		MOV A, keyAscii
 		ADD A, #30h
     	ACALL sendCharacter
-		ACALL waitCount
-		ACALL waitCount
-		ACALL waitCount
+
 		ACALL waitCount
 	RET
 	waitCount:
-		MOV R3, #0FFh
-		DJNZ R3, $
-		MOV R3, #0FFh
-		DJNZ R3, $
+		MOV R4, #10h
+		repeat:
+			MOV R3, #0FFh
+			DJNZ R3, $
+		DJNZ R4, repeat
 		RET
 	moviesTime: ; |  Time until the movies starts
 		db 8h, 9h, 5h, 7h
@@ -594,75 +614,82 @@ chronometer:
 org 041Ah
 showSeatOptions:
 	ACALL askForTheSeat
-	ACALL chronometer
+	ACALL movieSarted
+	LJMP showMovie
 	SJMP $
 
 turnOnLeds:
 	led0: 
 		CJNE @R1, #'0', valid0
-			SETB P1.0
+			SETB P2.0
 			INC R1
 	led1: 
 		CJNE @R1, #'1', valid1
-			SETB P1.1
+			SETB P2.1
 			INC R1
 	led2: 
 		CJNE @R1, #'2', valid2
-			SETB P1.2
+			SETB P2.2
 			INC R1
 	led3: 
 		CJNE @R1, #'3', valid3
-			SETB P1.3
+			SETB P2.3
 			INC R1
 	led4: 
 		CJNE @R1, #'4', valid4
-			SETB P1.4
+			SETB P2.4
 			INC R1
 	led5: 
 		CJNE @R1, #'5', valid5
-			SETB P1.5
+			SETB P2.5
 			INC R1
 	led6: 
 		CJNE @R1, #'6', valid6
-			SETB P1.6
+			SETB P2.6
 			INC R1
 	led7: 
 		CJNE @R1, #'7', valid7
-			SETB P1.7
+			SETB P2.7
 			RET
 
 	validateLed:
 		valid0: 
-			CLR P1.0 
+			CLR P2.0 
 			INC R1
 			AJMP led1
 		valid1:
-			CLR P1.1
+			CLR P2.1
 			INC R1 
 			AJMP led2
 		valid2:
-			CLR P1.2 
+			CLR P2.2 
 			INC R1 
 			AJMP led3
 		valid3:
-			CLR P1.3
+			CLR P2.3
 			INC R1
 			AJMP led4
 		valid4: 
-			CLR P1.4 
+			CLR P2.4 
 			INC R1 
 			AJMP led5
 		valid5: 
-			CLR P1.5 
+			CLR P2.5 
 			INC R1 
 			AJMP led6
 		valid6: 
-			CLR P1.6 
+			CLR P2.6 
 			INC R1
 			AJMP led7
 		valid7: 
-			CLR P1.7 
+			CLR P2.7 
 			RET
 
 org 049Ah
-timer:
+showMovie:
+	CLR P0.7	; enable the DAC WR line
+loop: 
+	MOV P1, A	; move data in the accumulator to the ADC inputs (on P1)
+	ADD A, #8	; increase accumulator by 8
+	JMP loop	; jump back to loop
+	
