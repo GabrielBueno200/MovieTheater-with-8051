@@ -532,7 +532,7 @@ movieStarted:
 	MOV DPTR,#MovieStarted_ROW1			; |  DPTR = begin of the phrase in the 3rd column
 	ACALL writeString
 
-	MOV A, #44h							; |  Start position in the 1st column at 2nd row
+	MOV A, #42h							; |  Start position in the 1st column at 2nd row
 	ACALL positionCursor
 	MOV DPTR,#MovieStarted_ROW2			; |  DPTR = begin of the phrase in the 1st column
     ACALL writeString
@@ -540,7 +540,7 @@ movieStarted:
 	RET
 	MovieStarted_ROW1: db "The movie"
 							   db 0
-	MovieStarted_ROW2: db "started"
+	MovieStarted_ROW2: db "has started"
 							   db 0
 
 ; Alerts user if option isn't valid 
