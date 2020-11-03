@@ -275,6 +275,8 @@ gotKey:
 ;################################################################################################################
 ;################################################################################################################
 ;################################################################################################################
+;################################################################################################################
+
 
 
 ;========================================================
@@ -292,7 +294,6 @@ Main:
 	ACALL showMovies
 	ACALL lcd_init
 	ACAll askForTheMovie
-	;SJMP $
 	SJMP $
 
 
@@ -323,11 +324,12 @@ org 0023H
 
 org 0060h
 	posRead EQU 70h    			; |  Variable to store the string positions
-	userOption EQU 71h 			; |     "      "   "    "  movie chosen by the user   
+	userOption EQU 71h 			; |  Variable to store the  movie chosen by the user   
 	keyAscii EQU 72h            ; |  Variable to make userOption-keyAscii and return a index in the aray that represents the movie selected
-	isOptionValid EQU F0		; |     "      " check if the user choice is valid
-	areMoviesPrinted EQU R7		; |     "      "   "    "  "  movies were printed 
-	firstTimeChoosingSeat EQU R5  
+	isOptionValid EQU F0		; |  Variable to check if the user choice is valid
+	areMoviesPrinted EQU R7		; |  Variable to check if the  movies were printed 
+	firstTimeChoosingSeat EQU R5; |	 Variable to check if the user is choosing the seat for the first time (to display LCD alerts correctly)
+	choseAvailableSeat EQU B.0  ; |  Variable to check if the user selected an available seat
 	
 
 
@@ -423,23 +425,22 @@ checkMovieOption:
 			RET
 
 checkSeatOption:
-	CJNE R2, #0, CONT																		; |  Prevents a possible array overflow: If equals 0, the subroutine 
-																							;    has read the entire array, then breaks the loop
-		CJNE firstTimeChoosingSeat, #1, leave   ; |  If the user isn't choosing the seat for the first time ;
-																						 ;    and has selected an unavailable option, alerts
-		INC firstTimeChoosingSeat															; |  else if user has selected an unavailable for the first time, increments  
+	CJNE R2, #0, CONT				; |  Prevents a possible array overflow: If equals 0, the subroutine 
+									;    has read the entire array, then breaks the loop
+		CJNE firstTimeChoosingSeat, #1, leave ; |  If the user isn't choosing the seat for the first time ;
+																				;    and has selected an unavailable option, alerts
+		INC firstTimeChoosingSeat												; |  else if user has selected an unavailable for the first time, increments  
 		RET		
 	CONT:		
-		MOV A, @R1 						; |  Gets the array current element by indirect addressing
+		MOV A, @R1						; |  Gets the array current element by indirect addressing
 		INC R1							; |  Increments the array position 
 		DEC R2							; |  Checks the number of positions read (until equals zero)
-		CJNE A, 38h, checkSeatOption		; |  If the current element is equals the user's seat option, validate it
-			DEC R1							; | 
-			MOV @R1, #'-'					; | Put the character '-' in array to inform that the seat was selected 
-			;LJMP chronometer				; | Calls the movie's chronometer
-			MOV R1, #30H
-			ACALL turnOnLeds
-			SETB B.0
+		CJNE A, 38h, checkSeatOption	; |  If the current element is equals the user's seat option, validate it
+			DEC R1						; | 
+			MOV @R1, #'-'				; | Put the character '-' in array to inform that the seat was selected 
+			MOV R1, #30H				; | 30h = available seats array initial address
+			ACALL turnOnLeds			; | turn on the leds linked with the user's seat option
+			SETB choseAvailableSeat
 
 		RET
 	leave:
@@ -496,20 +497,20 @@ askForTheSeat:
 	MOV P2, #255
 	
 	waitUserChoice:
-		CLR B.0
+		CLR choseAvailableSeat
 		MOV R1, #30h
 		ACALL turnOnLeds
-		ACALL readKeypad
-		JNB F0, waitUserChoice   ;if F0 is clear, jump to waitUserChoice
-		MOV A, #40h
+		ACALL readKeypad			; | reads the user's input
+		JNB F0, waitUserChoice		; | if F0 is clear (invalid seat option), jump to waitUserChoice
+		MOV A, #40h					; | if not, reads the value of the option
 		ADD A, R0
 		MOV R0, A
 		MOV A, @R0
-		MOV 38h, A 
-		MOV R1, #30H
-		MOV R2, #8H       
-		ACALL checkSeatOption
-		JB B.0, chronometer
+		MOV 38h, A					; | stores user option at address 38h
+		MOV R1, #30H				; | initial address of available seats array
+		MOV R2, #8H					; | array length
+		ACALL checkSeatOption		; | checks if it's a valid seat option
+		JB choseAvailableSeat, chronometer ; | if so, set the valid option variable
 		CLR F0
 		JMP waitUserChoice
 			
@@ -524,16 +525,16 @@ askForTheSeat:
 		db "seat"
 		db 0
 
-movieSarted:
+movieStarted:
 	ACALL clearDisplay
-	MOV A, #03h										; |  Start position in the 3rd column at 1st row
+	MOV A, #03h							; |  Start position in the 3rd column at 1st row
 	ACALL positionCursor
-	MOV DPTR,#MovieStarted_ROW1				; |  DPTR = begin of the phrase in the 3rd column
+	MOV DPTR,#MovieStarted_ROW1			; |  DPTR = begin of the phrase in the 3rd column
 	ACALL writeString
 
-	MOV A, #44h											; |  Start position in the 1st column at 2nd row
+	MOV A, #44h							; |  Start position in the 1st column at 2nd row
 	ACALL positionCursor
-	MOV DPTR,#MovieStarted_ROW2    ; |  DPTR = begin of the phrase in the 1st column
+	MOV DPTR,#MovieStarted_ROW2			; |  DPTR = begin of the phrase in the 1st column
     ACALL writeString
 	
 	RET
@@ -563,14 +564,14 @@ alertInvalidOption:
 
 chronometer:
 	ACALL clearDisplay
-	MOV A, #03h										; |  Start position in the 3rd column at 1st row
+	MOV A, #03h					; |  Start position in the 3rd column at 1st row
 	ACALL positionCursor
-	MOV DPTR,#countTime_ROW1		      ; |  DPTR = begin of the phrase in the 3rd column
+	MOV DPTR,#countTime_ROW1	; |  DPTR = begin of the phrase in the 3rd column
 	ACALL writeString
 	
-	MOV A, userOption                    ; | Move to A the selected movie
-	MOV keyAscii, #40h                    ; | Default value to make the default operation
-	SUBB A, keyAscii                      ; | Put in A the index(+1) of the selected movie
+	MOV A, userOption			; | Move to A the selected movie
+	MOV keyAscii, #40h			; | Default value to make the default operation
+	SUBB A, keyAscii			; | Put in A the index(+1) of the selected movie
  	DEC A
 	MOV DPTR, #moviesTime
 	MOVC A, @A+DPTR
@@ -578,7 +579,7 @@ chronometer:
 	MOV keyAscii, A
 	
 	COUNT:
-		MOV A, #46h										; |  Start position in the 1st column at 2nd row
+		MOV A, #46h				; |  Start position in the 1st column at 2nd row
 		ACALL positionCursor
 		MOV A, keyAscii
 		ADD A, #30h
@@ -587,7 +588,7 @@ chronometer:
 		ACALL waitCount
 
 	DJNZ keyAscii, COUNT
-		MOV A, #46h										; |  Start position in the 1st column at 2nd row
+		MOV A, #46h				; |  Start position in the 1st column at 2nd row
 		ACALL positionCursor
 		MOV A, keyAscii
 		ADD A, #30h
@@ -602,7 +603,7 @@ chronometer:
 			DJNZ R3, $
 		DJNZ R4, repeat
 		RET
-	moviesTime: ; |  Time until the movies starts
+	moviesTime: 				; |  Time until the movies starts
 		db 8h, 9h, 5h, 7h
 	countTime_ROW1: 
 		db "Starts in"
@@ -615,10 +616,11 @@ chronometer:
 org 041Ah
 showSeatOptions:
 	ACALL askForTheSeat
-	ACALL movieSarted
+	ACALL movieStarted
 	LJMP showMovie
 	SJMP $
 
+; Reads the entire seats array and turn on the LEDs if the user option is valid
 turnOnLeds:
 	led0: 
 		CJNE @R1, #'0', valid0
@@ -688,9 +690,8 @@ turnOnLeds:
 
 org 049Ah
 showMovie:
-	CLR P0.7	; enable the DAC WR line
+	CLR P0.7	; enables the DAC WR line
 loop: 
-	MOV P1, A	; move data in the accumulator to the ADC inputs (on P1)
-	ADD A, #8	; increase accumulator by 8
-	JMP loop	; jump back to loop
-	
+	MOV P1, A	; moves data in the accumulator to the ADC inputs (on P1)
+	ADD A, #8	; increases accumulator by 8
+	JMP loop	; jumps back to loop
