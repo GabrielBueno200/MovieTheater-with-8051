@@ -410,6 +410,7 @@ checkMovieOption:
 									;    has read the entire array, then breaks the loop
 		CLR isOptionValid			; |  If the entire array was read by the subroutine, 
 									;    no values match with the user's option
+		CLR RI
 		ACALL alertInvalidOption		
 		RET		
 	CONTINUE:		
@@ -562,7 +563,7 @@ alertInvalidOption:
 
 chronometer:
 	ACALL clearDisplay
-	MOV A, #02h										; |  Start position in the 3rd column at 1st row
+	MOV A, #03h										; |  Start position in the 3rd column at 1st row
 	ACALL positionCursor
 	MOV DPTR,#countTime_ROW1		      ; |  DPTR = begin of the phrase in the 3rd column
 	ACALL writeString
