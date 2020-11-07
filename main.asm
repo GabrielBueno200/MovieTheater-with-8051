@@ -293,7 +293,7 @@ org 000Fh
 		MOV TMOD,#00000010b ;Usa modo 02 e Habilita o Contador
 		MOV TH0, #0 ;valor para a recarga
 		MOV TL0, #0 ;valor para a contagem
-		SETB EA ;Hailita as interrupções 
+		SETB EA ;Hailita as interrupÃ§Ãµes 
 	 	SETB ET0 ;Habilita o temporizador 0
 		SETB TR0 ;Liga o temporizador
 	RET
@@ -311,7 +311,7 @@ Main:
 ;              SERIAL CHANNEL SECTION
 ;=======================================================
 
-; INTERRUPTION FOR RECEPTIONS
+; ; INTERRUPTION FOR SERIAL TX RECEPTIONS
 org 0023H
 	CALL delay
 	CJNE R7, #1, back 
@@ -335,11 +335,11 @@ org 0023H
 org 0060h
 	posRead EQU 70h    			; |  Variable to store the string positions
 	userOption EQU 71h 			; |  Variable to store the  movie chosen by the user   
-	keyAscii EQU 72h            ; |  Variable to make userOption-keyAscii and return a index in the aray that represents the movie selected
+	keyAscii EQU 72h            ; |  Variable to make userOption-keyAscii and return an index in the array that represents the selected movie
 	isOptionValid EQU F0		; |  Variable to check if the user choice is valid
 	areMoviesPrinted EQU R7		; |  Variable to check if the  movies were printed 
 	firstTimeChoosingSeat EQU R5; |	 Variable to check if the user is choosing the seat for the first time (to display LCD alerts correctly)
-	choseAvailableSeat EQU B.0  ; |  Variable to check if the user selected an available seat
+	choseAvailableSeat EQU B.0  ; |  Variable to check if the user has selected an available seat
 	
 
 
@@ -347,19 +347,11 @@ org 0060h
 resetVariables:
 	CLR A
 	MOV posRead, #0h
-	RET
 
-; subroutine to initialize variables
-showMovies:
-	CALL resetVariables
-	MOV SCON, #50h  ;  |  Enable Serial Mode 1 and the port receiver
-	MOV PCON, #80h  ;  |  SMOD bit = 1
-	MOV TMOD, #20h  ;  |  CT1 mode 2
-	MOV TH1, #243   ;  |  Initial value for count
-	MOV TL1, #243   ;  |  Recharge amount
-	SETB TR1        ;  |  Turn on the timer
-	MOV IE, #90h    ;  |  Sets the serial interruption
-	
+	CLR RI ; | CLR RI for new Serial TX receptions
+
+	MOV P2, #255 ; | turns LEDs off
+
 	; | Array of available options for movies (address: 75h - 78h)
 	MOV 75h, #'A'
 	MOV 76h, #'B'	
@@ -386,12 +378,27 @@ showMovies:
 	MOV 36h, #'6'
 	MOV 37h, #'7'
 				
-	
 	MOV firstTimeChoosingSeat, #0	;| initializes the variable responsible for
  									;| checking if the user is choosing a movie for the first time
 
 	CLR isOptionValid				;| initializes the user's movie option
-	MOV areMoviesPrinted, #0		;| initializes the variable to check if the list of movies has been printed
+
+	RET
+
+; subroutine to initialize variables
+showMovies:
+	CALL resetVariables
+	MOV SCON, #50h  ;  |  Enable Serial Mode 1 and the port receiver
+	MOV PCON, #80h  ;  |  SMOD bit = 1
+	MOV TMOD, #20h  ;  |  CT1 mode 2
+	MOV TH1, #243   ;  |  Initial value for count
+	MOV TL1, #243   ;  |  Recharge amount
+	SETB TR1        ;  |  Turn on the timer
+	MOV IE, #90h    ;  |  Sets the serial interruption
+
+	MOV areMoviesPrinted, #0	;| initializes the variable to check if the list of movies has been printed
+	
+
 	
 
 ;subroutine to print movies in the serial port
@@ -461,13 +468,13 @@ checkSeatOption:
 
 ; movies list: names and start times
 moviesList:
-	db "A » Dune - Starts in 8s" 
+	db "A Â» Dune - Starts in 8s" 
 	db '\n'
-	db "B » 007-Again - Starts in 9s"
+	db "B Â» 007-Again - Starts in 9s"
 	db '\n'
-	db "C » Matrix - Starts in 5s"
+	db "C Â» Matrix - Starts in 5s"
 	db '\n'
-	db "D » Avengers - Starts in 7s"
+	db "D Â» Avengers - Starts in 7s"
 	db 0
 
 
@@ -730,5 +737,10 @@ loop:
 	DJNZ R6, loop
 	MOV R6, #0FFh
 	DJNZ R4, loop	; jump back to loop
-RET
-	
+
+; Subroutine to allow new customers orders
+restartProgram:
+	ACALL resetVariables
+	ACALL clearDisplay
+	ACALL askForTheMovie
+	RET
