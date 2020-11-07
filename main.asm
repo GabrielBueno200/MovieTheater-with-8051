@@ -294,12 +294,21 @@ Main:
 	ACAll askForTheMovie
 	SJMP $
 
+; Subroutine to allow new customers orders
+restartProgram:
+	ACALL resetVariables
+	MOV R1, #30h
+	ACALL turnOnLeds
+	ACALL clearDisplay
+	ACALL askForTheMovie
+	RET
+
 
 ;=======================================================
 ;              SERIAL CHANNEL SECTION
 ;=======================================================
 
-; INTERRUPTION FOR RECEPTIONS
+; INTERRUPTION FOR SERIAL RX RECEPTIONS
 org 0023H
 	CALL delay
 	CJNE R7, #1, back 
@@ -323,11 +332,11 @@ org 0023H
 org 0060h
 	posRead EQU 70h    			; |  Variable to store the string positions
 	userOption EQU 71h 			; |  Variable to store the  movie chosen by the user   
-	keyAscii EQU 72h            ; |  Variable to make userOption-keyAscii and return a index in the aray that represents the movie selected
+	keyAscii EQU 72h            ; |  Variable to make userOption-keyAscii and return an index in the array that represents the selected movie
 	isOptionValid EQU F0		; |  Variable to check if the user choice is valid
 	areMoviesPrinted EQU R7		; |  Variable to check if the  movies were printed 
 	firstTimeChoosingSeat EQU R5; |	 Variable to check if the user is choosing the seat for the first time (to display LCD alerts correctly)
-	choseAvailableSeat EQU B.0  ; |  Variable to check if the user selected an available seat
+	choseAvailableSeat EQU B.0  ; |  Variable to check if the user has selected an available seat
 	
 
 
@@ -335,19 +344,7 @@ org 0060h
 resetVariables:
 	CLR A
 	MOV posRead, #0h
-	RET
 
-; subroutine to initialize variables
-showMovies:
-	CALL resetVariables
-	MOV SCON, #50h  ;  |  Enable Serial Mode 1 and the port receiver
-	MOV PCON, #80h  ;  |  SMOD bit = 1
-	MOV TMOD, #20h  ;  |  CT1 mode 2
-	MOV TH1, #243   ;  |  Initial value for count
-	MOV TL1, #243   ;  |  Recharge amount
-	SETB TR1        ;  |  Turn on the timer
-	MOV IE, #90h    ;  |  Sets the serial interruption
-	
 	; | Array of available options for movies (address: 75h - 78h)
 	MOV 75h, #'A'
 	MOV 76h, #'B'	
@@ -380,6 +377,19 @@ showMovies:
 
 	CLR isOptionValid				;| initializes the user's movie option
 	MOV areMoviesPrinted, #0		;| initializes the variable to check if the list of movies has been printed
+
+	RET
+
+; subroutine to initialize variables
+showMovies:
+	CALL resetVariables
+	MOV SCON, #50h  ;  |  Enable Serial Mode 1 and the port receiver
+	MOV PCON, #80h  ;  |  SMOD bit = 1
+	MOV TMOD, #20h  ;  |  CT1 mode 2
+	MOV TH1, #243   ;  |  Initial value for count
+	MOV TL1, #243   ;  |  Recharge amount
+	SETB TR1        ;  |  Turn on the timer
+	MOV IE, #90h    ;  |  Sets the serial interruption
 	
 
 ;subroutine to print movies in the serial port
@@ -449,13 +459,13 @@ checkSeatOption:
 
 ; movies list: names and start times
 moviesList:
-	db "A ï¿½ Dune - Starts in 8s" 
+	db "A » Dune - Starts in 8s" 
 	db '\n'
-	db "B ï¿½ 007-Again - Starts in 9s"
+	db "B » 007-Again - Starts in 9s"
 	db '\n'
-	db "C ï¿½ Matrix - Starts in 5s"
+	db "C » Matrix - Starts in 5s"
 	db '\n'
-	db "D ï¿½ Avengers - Starts in 7s"
+	db "D » Avengers - Starts in 7s"
 	db 0
 
 
@@ -613,7 +623,7 @@ chronometer:
 
 
 ;=======================================================
-;              SWITCH/LEDS SECTION
+;              SWITCH/LEDS/DAC SECTION
 ;=======================================================
 org 041Ah
 showSeatOptions:
@@ -622,7 +632,7 @@ showSeatOptions:
 	LJMP showMovie
 	SJMP $
 
-; Reads the entire seats array and turn on the LEDs if the user option is valid
+; Reads the entire seats array and turns on the LEDs if the user choice is valid
 turnOnLeds:
 	led0: 
 		CJNE @R1, #'0', valid0
@@ -701,5 +711,5 @@ loop:
 	DJNZ R6, loop
 	MOV R6, #0FFh
 	DJNZ R4, loop	; jump back to loop
+ACALL restartProgram
 RET
-	
