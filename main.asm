@@ -10,7 +10,7 @@
 ;========================================================
 ;                 IMPORTS SECTION
 ;========================================================
-org 02A0h
+org 02B0h
 
 ;====================================
 ;            LCD IMPORTS
@@ -284,31 +284,34 @@ gotKey:
 ; Jumps for the main function
 org 0000h
 	LJMP Main
+; Interruption for timer
+org 000Bh
+	RETI
 
-
+org 000Fh
+	setTimer:
+		MOV TMOD,#00000010b ;Usa modo 02 e Habilita o Contador
+		MOV TH0, #0 ;valor para a recarga
+		MOV TL0, #0 ;valor para a contagem
+		SETB EA ;Hailita as interrupções 
+	 	SETB ET0 ;Habilita o temporizador 0
+		SETB TR0 ;Liga o temporizador
+	RET
 ; Main function
 org 0040h
 Main:
+	ACALL setTimer
 	ACALL showMovies
 	ACALL lcd_init
 	ACAll askForTheMovie
 	SJMP $
-
-; Subroutine to allow new customers orders
-restartProgram:
-	ACALL resetVariables
-	MOV R1, #30h
-	ACALL turnOnLeds
-	ACALL clearDisplay
-	ACALL askForTheMovie
-	RET
 
 
 ;=======================================================
 ;              SERIAL CHANNEL SECTION
 ;=======================================================
 
-; INTERRUPTION FOR SERIAL RX RECEPTIONS
+; INTERRUPTION FOR RECEPTIONS
 org 0023H
 	CALL delay
 	CJNE R7, #1, back 
@@ -332,11 +335,11 @@ org 0023H
 org 0060h
 	posRead EQU 70h    			; |  Variable to store the string positions
 	userOption EQU 71h 			; |  Variable to store the  movie chosen by the user   
-	keyAscii EQU 72h            ; |  Variable to make userOption-keyAscii and return an index in the array that represents the selected movie
+	keyAscii EQU 72h            ; |  Variable to make userOption-keyAscii and return a index in the aray that represents the movie selected
 	isOptionValid EQU F0		; |  Variable to check if the user choice is valid
 	areMoviesPrinted EQU R7		; |  Variable to check if the  movies were printed 
 	firstTimeChoosingSeat EQU R5; |	 Variable to check if the user is choosing the seat for the first time (to display LCD alerts correctly)
-	choseAvailableSeat EQU B.0  ; |  Variable to check if the user has selected an available seat
+	choseAvailableSeat EQU B.0  ; |  Variable to check if the user selected an available seat
 	
 
 
@@ -344,7 +347,19 @@ org 0060h
 resetVariables:
 	CLR A
 	MOV posRead, #0h
+	RET
 
+; subroutine to initialize variables
+showMovies:
+	CALL resetVariables
+	MOV SCON, #50h  ;  |  Enable Serial Mode 1 and the port receiver
+	MOV PCON, #80h  ;  |  SMOD bit = 1
+	MOV TMOD, #20h  ;  |  CT1 mode 2
+	MOV TH1, #243   ;  |  Initial value for count
+	MOV TL1, #243   ;  |  Recharge amount
+	SETB TR1        ;  |  Turn on the timer
+	MOV IE, #90h    ;  |  Sets the serial interruption
+	
 	; | Array of available options for movies (address: 75h - 78h)
 	MOV 75h, #'A'
 	MOV 76h, #'B'	
@@ -377,19 +392,6 @@ resetVariables:
 
 	CLR isOptionValid				;| initializes the user's movie option
 	MOV areMoviesPrinted, #0		;| initializes the variable to check if the list of movies has been printed
-
-	RET
-
-; subroutine to initialize variables
-showMovies:
-	CALL resetVariables
-	MOV SCON, #50h  ;  |  Enable Serial Mode 1 and the port receiver
-	MOV PCON, #80h  ;  |  SMOD bit = 1
-	MOV TMOD, #20h  ;  |  CT1 mode 2
-	MOV TH1, #243   ;  |  Initial value for count
-	MOV TL1, #243   ;  |  Recharge amount
-	SETB TR1        ;  |  Turn on the timer
-	MOV IE, #90h    ;  |  Sets the serial interruption
 	
 
 ;subroutine to print movies in the serial port
@@ -506,8 +508,25 @@ askForTheSeat:
     ACALL writeString
 	
 	INC firstTimeChoosingSeat
-	MOV P2, #255
 	
+	getAvailableSeats:
+		MOV A, TL0
+		MOV R6, #8
+		car EQU 39h
+		MOV R1, #30h
+		storeOptions:
+			RLC A
+			JC notTaken
+				MOV @R1, #2Dh
+				SJMP jump	
+			notTaken:
+				MOV car, R1
+				MOV @R1, car
+			jump:
+				INC R1
+		DJNZ R6, storeOptions 				
+	
+
 	waitUserChoice:
 		CLR choseAvailableSeat
 		MOV R1, #30h
@@ -591,7 +610,7 @@ chronometer:
 	MOV keyAscii, A
 	
 	COUNT:
-		MOV A, #46h				; |  Start position in the 1st column at 2nd row
+		MOV A, #47h				; |  Start position in the 1st column at 2nd row
 		ACALL positionCursor
 		MOV A, keyAscii
 		ADD A, #30h
@@ -600,7 +619,7 @@ chronometer:
 		ACALL waitCount
 
 	DJNZ keyAscii, COUNT
-		MOV A, #46h				; |  Start position in the 1st column at 2nd row
+		MOV A, #47h				; |  Start position in the 1st column at 2nd row
 		ACALL positionCursor
 		MOV A, keyAscii
 		ADD A, #30h
@@ -623,7 +642,7 @@ chronometer:
 
 
 ;=======================================================
-;              SWITCH/LEDS/DAC SECTION
+;              SWITCH/LEDS SECTION
 ;=======================================================
 org 041Ah
 showSeatOptions:
@@ -632,7 +651,7 @@ showSeatOptions:
 	LJMP showMovie
 	SJMP $
 
-; Reads the entire seats array and turns on the LEDs if the user choice is valid
+; Reads the entire seats array and turn on the LEDs if the user option is valid
 turnOnLeds:
 	led0: 
 		CJNE @R1, #'0', valid0
@@ -711,5 +730,5 @@ loop:
 	DJNZ R6, loop
 	MOV R6, #0FFh
 	DJNZ R4, loop	; jump back to loop
-ACALL restartProgram
 RET
+	
