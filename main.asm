@@ -444,9 +444,9 @@ checkMovieOption:
 checkSeatOption:
 	CJNE R2, #0, CONT				; |  Prevents a possible array overflow: If equals 0, the subroutine 
 									;    has read the entire array, then breaks the loop
-		CJNE firstTimeChoosingSeat, #1, leave ; |  If the user isn't choosing the seat for the first time ;
-																				;    and has selected an unavailable option, alerts
-		INC firstTimeChoosingSeat												; |  else if user has selected an unavailable for the first time, increments  
+		CJNE firstTimeChoosingSeat, #1, return ; |  If the user isn't choosing the seat for the first time ;
+																				 ; |  and has selected an unavailable option, return
+		ACALL alerts												; |  else if user has selected an unavailable for the first time, alerts  
 		RET		
 	CONT:		
 		MOV A, @R1						; |  Gets the array current element by indirect addressing
@@ -459,11 +459,10 @@ checkSeatOption:
 			ACALL turnOnLeds			; | turn on the leds linked with the user's seat option
 			SETB choseAvailableSeat
 
-		RET
-	leave:
+		return:
+			ret
+	alerts:
 		ACALL alertInvalidOption
-		MOV R1, #30h
-		ACALL turnOnLeds
 		RET
 
 ; movies list: names and start times
@@ -514,8 +513,6 @@ askForTheSeat:
 	MOV DPTR,#afts2 	    ; |  DPTR = begin of the phrase in the second column
     ACALL writeString
 	
-	INC firstTimeChoosingSeat
-	
 	getAvailableSeats:
 		MOV A, TL0
 		MOV R6, #8
@@ -524,7 +521,7 @@ askForTheSeat:
 		storeOptions:
 			RLC A
 			JC notTaken
-				MOV @R1, #2Dh
+				MOV @R1, #'-'
 				SJMP jump	
 			notTaken:
 				MOV car, R1
@@ -533,22 +530,24 @@ askForTheSeat:
 				INC R1
 		DJNZ R6, storeOptions 				
 	
+	INC firstTimeChoosingSeat
+	CLR F0
 
 	waitUserChoice:
 		CLR choseAvailableSeat
 		MOV R1, #30h
 		ACALL turnOnLeds
 		ACALL readKeypad			; | reads the user's input
-		JNB F0, waitUserChoice		; | if F0 is clear (invalid seat option), jump to waitUserChoice
+		JNB F0, waitUserChoice		; | if F0 is clear, jump to waitUserChoice
 		MOV A, #40h					; | if not, reads the value of the option
 		ADD A, R0
 		MOV R0, A
 		MOV A, @R0
-		MOV 38h, A					; | stores user option at address 38h
+		MOV 38h, A					; | stores user seat option at address 38h
 		MOV R1, #30H				; | initial address of available seats array
 		MOV R2, #8H					; | array length
 		ACALL checkSeatOption		; | checks if it's a valid seat option
-		JB choseAvailableSeat, chronometer ; | if so, set the valid option variable
+		JB choseAvailableSeat, chronometer ; | if so, set the valid option variable and starts the chronometer
 		CLR F0
 		JMP waitUserChoice
 			
