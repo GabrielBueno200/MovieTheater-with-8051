@@ -468,13 +468,13 @@ checkSeatOption:
 
 ; movies list: names and start times
 moviesList:
-	db "A Â» Dune - Starts in 8s" 
+	db "A » Dune - Starts in 8s" 
 	db '\n'
-	db "B Â» 007-Again - Starts in 9s"
+	db "B » 007-Again - Starts in 9s"
 	db '\n'
-	db "C Â» Matrix - Starts in 5s"
+	db "C » Matrix - Starts in 5s"
 	db '\n'
-	db "D Â» Avengers - Starts in 7s"
+	db "D » Avengers - Starts in 7s"
 	db 0
 
 
@@ -737,10 +737,7 @@ loop:
 	DJNZ R6, loop
 	MOV R6, #0FFh
 	DJNZ R4, loop	; jump back to loop
-
-; Subroutine to allow new customers orders
-restartProgram:
-	ACALL resetVariables
+	SETB P0.7
 	ACALL clearDisplay
-	ACALL askForTheMovie
 	RET
+		
