@@ -9,4 +9,5 @@ Automation of a movie theater using the 8051 microcontroller in the EdSim51 simu
 ![image](https://user-images.githubusercontent.com/49571908/97896903-7ab27800-1d14-11eb-9eef-c7ca2b93aa51.png)
 
 ## Used equipments
-![image](https://user-images.githubusercontent.com/49571908/98494743-75759180-221c-11eb-9769-448ca05c0ff9.png)
+![image](https://user-images.githubusercontent.com/49571908/98494808-963de700-221c-11eb-9d37-b8accd3ee18b.png)
+
